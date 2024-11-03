@@ -212,7 +212,7 @@ namespace payload
                 set_query();
                 set_params();
                 set_content_type();
-                set_body();
+                if(method != "GET" || method != "DELETE")set_body();
             }
     };
 
@@ -240,7 +240,7 @@ namespace payload
                 this->body = body;
             }
             void set_response_content_type(string content_type) {
-                this->content_type = mime::get_mime(content_type);
+                this->content_type = Mime::get_mime(content_type);
             }
 
             void send_message(long long *client) { 

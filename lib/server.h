@@ -177,9 +177,9 @@ namespace Server
                 }
             }
 
-            void set_ip(string ip){ this->ip = ip; }
+            void set_ip(string ip){ if(ip.size() != 0)this->ip = ip; }
             void set_logs(bool logs){ this->logs = logs; }
-            void set_port(short int port){ this->port = port; }
+            void set_port(short int port){ if(port)this->port = port; }
             void set_router(Router *router){ this->router = router;}
             void set_worker_counts(short int worker_count){ this->worker_count = worker_count; }
             void set_url(string ip, short int port){

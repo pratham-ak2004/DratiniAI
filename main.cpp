@@ -1,11 +1,17 @@
 #include <iostream>
 #include "lib/server.h"
+#include "lib/environment.h"
 
 int main(){
     Server::Server server;
     Server::Router router;
+    Envir::Environment env("./.env");
+    
     server.set_logs(true);
     server.set_worker_counts(3);
+    server.set_ip(env.get_env("HOST").second);
+    server.set_port(stoi(env.get_env("PORT").second, nullptr, 10));
+
     server.bind_server();
     server.set_router(&router);
 

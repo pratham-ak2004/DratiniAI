@@ -4,7 +4,7 @@
 #include <iostream>
 #include <unordered_map>
 
-namespace mime {
+namespace Mime {
 
     std::unordered_map<std::string, std::string> Mimes = {
         // application
