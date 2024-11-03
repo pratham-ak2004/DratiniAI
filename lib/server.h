@@ -4,6 +4,7 @@
 #include <iostream>
 #include <thread>
 #include <vector>
+#include "payload.h"
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
 #include <winsock2.h>
@@ -15,6 +16,7 @@
 #endif
 
 using namespace std;
+using namespace payload;
 
 namespace Server
 {
@@ -48,19 +50,46 @@ namespace Server
             string ip = "127.0.0.1";
             vector<thread> workers;
 
+            long long get_client(int *val){
+                #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+                    sockaddr client;
+                    int client_size = sizeof(client);
+                #elif defined (__linux__)
+                    struct sockaddr_in client;
+                    socklen_t client_size = sizeof(client);
+                #endif
+
+                long long accepted_socket = accept(server_socket, (struct sockaddr *)&client, &client_size);
+                if(accepted_socket < 0){
+                    cout << "Failed to accept connection" << endl;
+                    #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+                        closesocket(server_socket);
+                        WSACleanup();
+                    #endif
+                    return -1;
+                }else{
+                    if(logs)cout << "Accepted connection in thread " << *val << endl;
+                    return accepted_socket;
+                }
+            }
+
             short int server_loop(int val){
+                long long current_client;
                 while(true){
-                    long long accepted_socket = accept(server_socket, NULL, NULL);
-                    if(accepted_socket < 0){
-                        cout << "Failed to accept connection" << endl;
-                        #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-                            closesocket(server_socket);
-                            WSACleanup();
-                        #endif
-                        return -1;
-                    }else{
-                        cout << "Accepted connection " << val << endl;
-                    }
+                    current_client = this->get_client(&val);
+
+                    if(current_client < 0) continue;
+
+                    Request request(&current_client);
+                    Response response(request);
+
+                    response.send_message(&current_client);
+
+                    #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+                        closesocket(current_client);
+                    #elif defined(__linux__)
+                        close(current_client);
+                    #endif
                 }
             }
 
@@ -136,7 +165,7 @@ namespace Server
             }
 
             void listen_server(){
-                int listen_status = listen(server_socket, 5); // 5 is the maximum number of connections
+                int listen_status = listen(server_socket, worker_count); // 5 is the maximum number of connections
 
                 if(listen_status == EADDRINUSE){
                     cout << "Port " << port << " is already in use or socket is not bound. \nRun Server.bind_server() before this function" << endl;
@@ -170,7 +199,7 @@ namespace Server
                 }
 
                 for(short int i = 0; i < worker_count; i++){
-                    workers.push_back(thread(&Server::server_loop, this,i));
+                    workers.push_back(thread(&Server::server_loop, this, i));
                 }
                 for(thread &worker: workers){
                     worker.join();
@@ -178,6 +207,7 @@ namespace Server
             }
             
     };
+    
 } // namespace Server
 
 
