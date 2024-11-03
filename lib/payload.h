@@ -4,6 +4,8 @@
 #include <iostream>
 #include <regex>
 #include <unordered_map>
+#include <fstream>
+#include "mimes.h"
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
 #include <winsock2.h>
@@ -41,6 +43,7 @@ namespace payload
         case _DELETE:
             return "DELETE";
             break;
+        case UNKNOWN:
         default:
             return "UNKNOWN";
             break;
@@ -233,10 +236,35 @@ namespace payload
                 status_code = payload::StatusCode::OK;
             }
 
+            void set_response_body(string body){
+                this->body = body;
+            }
+            void set_response_content_type(string content_type) {
+                this->content_type = mime::get_mime(content_type);
+            }
+
             void send_message(long long *client) { 
                 string response_content = response_header + to_string(status_code) + "\nContent-Type: " + content_type + "\n\n" + body;
 
                 send(*client, response_content.c_str(), response_content.size(), 0);
+            }
+
+            void set_html_content(string file_path){
+                fstream file(file_path);
+                
+                if(!file.is_open()) {
+                    cerr << "Error opening the file";
+                }else{
+                    string line, file_content;
+
+                    while(getline(file,line)){
+                        file_content += line;
+                    }
+                    set_response_body(file_content);
+                    set_response_content_type("html");
+
+                    file.close();
+                }
             }
     };
 }// namespace payload

@@ -20,10 +20,51 @@ using namespace payload;
 
 namespace Server
 {
+
+    class Router {
+
+        private:
+            struct Route_Function {
+                // function<return_type(param_type)> name;
+                function<Response(Request, Response)> callback;
+                function<Response(Request)> error;
+                Method method;
+            };
+            unordered_map<string, Route_Function> routes;
+
+        public:
+            void GET(string route, function<Response(Request,Response)> callback){
+                Route_Function route_function;
+
+                route_function.method = Method::GET;
+                route_function.callback = callback;
+
+                routes[route] = route_function;
+            }
+
+            Response execute_route(Request request, Response response){
+                if(routes.find(request.route) != routes.end()){
+                    Route_Function route_function = routes[request.route];
+
+                    if(get_method_name(route_function.method) == request.method){
+                        response = route_function.callback(request, response);
+                    }else{
+                        // response->set_status_code(StatusCode::METHOD_NOT_ALLOWED);
+                        response.set_response_body("Method not allowed");
+                    }
+                }else{
+                    // response->set_status_code(StatusCode::NOT_FOUND);
+                    response.set_response_body("Route not found");
+                }
+                return response;
+            }
+    };
+
     class Server{
         public: 
             bool logs = false;
             short int worker_count = 1;
+            Router *router;
 
         // windows setup
         private:
@@ -83,6 +124,8 @@ namespace Server
                     Request request(&current_client);
                     Response response(request);
 
+                    response = router->execute_route(request, response);
+
                     response.send_message(&current_client);
 
                     #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
@@ -137,6 +180,7 @@ namespace Server
             void set_ip(string ip){ this->ip = ip; }
             void set_logs(bool logs){ this->logs = logs; }
             void set_port(short int port){ this->port = port; }
+            void set_router(Router *router){ this->router = router;}
             void set_worker_counts(short int worker_count){ this->worker_count = worker_count; }
             void set_url(string ip, short int port){
                 this->ip = ip;
@@ -207,7 +251,7 @@ namespace Server
             }
             
     };
-    
+
 } // namespace Server
 
 
