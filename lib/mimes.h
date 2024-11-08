@@ -19,6 +19,7 @@ namespace Mime {
         {"xml", "application/xml"},
         {"zip", "application/zip"},
         {"x-www-form-urlencoded", "application/x-www-form-urlencoded"},
+        {"json", "application/json"},
         // audio
         {"mpeg", "audio/mpeg"},
         {"webm", "audio/webm"},

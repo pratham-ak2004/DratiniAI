@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <fstream>
 #include "mimes.h"
+#include "nlohmann/json.hpp"
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
 #include <winsock2.h>
@@ -17,6 +18,7 @@
 #define buffer_size 1024 * 4
 
 using namespace std;
+using json = nlohmann::json;
 
 namespace payload
 {
@@ -76,6 +78,8 @@ namespace payload
             string body;
             string content_type;
 
+            json json_body;
+
             int status_code;
 
             unordered_map<string, string> params;
@@ -103,7 +107,7 @@ namespace payload
             string content;
 
             void set_method() {
-                regex method_regex("GET|POST|PUT|DELETE");
+                regex method_regex("GET|POST|PUT|DELETE|UNKNOWN");
                 smatch match;
                 Method method_type;
 
@@ -180,12 +184,11 @@ namespace payload
             }
 
             void set_content_type() {
-                regex content_type_regex("Content-Type: ([^\\n ]*)");
+                regex content_type_regex("Content-Type: ([^\\n\\s]*)");
                 smatch match;
 
                 regex_search(content, match, content_type_regex);
-
-                if(match.size() > 0) content_type = match[0];
+                if(match.size() > 0) content_type = match[1];
             }
 
             void set_body() {
@@ -194,6 +197,24 @@ namespace payload
 
                 regex_search(content,match,body_regex);
                 if(match.size() >= 2) body = match[1];
+            }
+
+            void set_json() {
+                if(content_type == "application/json" && body != ""){
+                    json_body = json::parse(body);
+                }
+            }
+
+            int get_status_code() {
+                regex status_code_regex("HTTP/1.1 (\\d+)");
+                smatch match;
+
+                regex_search(content, match, status_code_regex);
+                if(match.size() > 0){
+                    return stoi(match[1]);
+                }else{
+                    return 500;
+                }
             }
 
         public:
@@ -213,6 +234,8 @@ namespace payload
                 set_params();
                 set_content_type();
                 if(method != "GET" || method != "DELETE")set_body();
+                set_json();
+
             }
     };
 
@@ -233,7 +256,8 @@ namespace payload
                 set_params();
                 set_content_type();
                 set_body();
-                status_code = payload::StatusCode::OK;
+                set_json();
+                status_code = 200;
             }
 
             void set_response_body(string body){
@@ -241,6 +265,17 @@ namespace payload
             }
             void set_response_content_type(string content_type) {
                 this->content_type = Mime::get_mime(content_type);
+            }
+
+            void set_response_status(StatusCode status_code)
+            {
+                this->status_code = status_code;
+            }
+
+            void set_response_json(json json_body) {
+                this->json_body = json_body;
+                set_response_body(json_body.dump(1, '\t'));
+                set_response_content_type("json");
             }
 
             void send_message(long long *client) { 

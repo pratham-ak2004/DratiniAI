@@ -1,4 +1,6 @@
 .vscode
 *.exe
+/lib/json_whole
+/lib/nlohmann
 
 .env

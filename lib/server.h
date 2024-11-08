@@ -5,6 +5,7 @@
 #include <thread>
 #include <vector>
 #include "payload.h"
+#include "nlohmann/json.hpp"
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
 #include <winsock2.h>
@@ -17,6 +18,7 @@
 
 using namespace std;
 using namespace payload;
+using json = nlohmann::json;
 
 namespace Server
 {
@@ -42,6 +44,15 @@ namespace Server
                 routes[route] = route_function;
             }
 
+            void POST(string route, function<Response(Request,Response)> callback){
+                Route_Function route_function;
+
+                route_function.method = Method::POST;
+                route_function.callback = callback;
+
+                routes[route] = route_function;
+            }
+
             Response execute_route(Request request, Response response){
                 if(routes.find(request.route) != routes.end()){
                     Route_Function route_function = routes[request.route];
@@ -49,12 +60,12 @@ namespace Server
                     if(get_method_name(route_function.method) == request.method){
                         response = route_function.callback(request, response);
                     }else{
-                        // response->set_status_code(StatusCode::METHOD_NOT_ALLOWED);
+                        response.set_response_status(payload::StatusCode::METHOD_NOT_ALLOWED);
                         response.set_response_body("Method not allowed");
                     }
                 }else{
-                    // response->set_status_code(StatusCode::NOT_FOUND);
-                    response.set_response_body("Route not found");
+                    response.set_response_status(StatusCode::NOT_FOUND);
+                    response.set_response_body("Not found");
                 }
                 return response;
             }
@@ -140,6 +151,9 @@ namespace Server
 
             Server(){
                 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+                    #if logs == true
+                        cout << "Detected Windows OS" << endl;
+                    #endif
                     windows_init();
                 #elif defined(__linux__) && logs == true
                     cout << "Detected Linux OS" << endl;
