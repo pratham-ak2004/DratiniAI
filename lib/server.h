@@ -4,6 +4,7 @@
 #include <iostream>
 #include <thread>
 #include <vector>
+
 #include "payload.h"
 #include "nlohmann/json.hpp"
 
@@ -112,6 +113,8 @@ namespace Server
                 #endif
 
                 long long accepted_socket = accept(server_socket, (struct sockaddr *)&client, &client_size);
+
+                
                 if(accepted_socket < 0){
                     cout << "Failed to accept connection" << endl;
                     #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)

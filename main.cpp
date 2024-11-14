@@ -2,9 +2,25 @@
 #include "lib/server.h"
 #include "lib/environment.h"
 #include "lib/nlohmann/json.hpp" // https://github.com/nlohmann/json
-#include "lib/http.h"
+// #include "lib/http.h"
 
 using json = nlohmann::json;
+
+std::string exec(const char *cmd)
+{
+    std::array<char, 128> buffer;
+    std::string result;
+    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
+    if (!pipe)
+    {
+        throw std::runtime_error("popen() failed!");
+    }
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr)
+    {
+        result += buffer.data();
+    }
+    return result;
+}
 
 int main(){
     Server::Server server;
@@ -26,6 +42,7 @@ int main(){
         response.set_html_content("./src/index.html");
         return response;
     });
+    
 
     router.GET("/test", [](Request request, Response response){
         // json json_body;
@@ -61,22 +78,21 @@ int main(){
             }
 
             Envir::Environment env("./.env");
-            string url = "generativelanguage.googleapis.com";
-            string route = "/v1beta/models/gemini-1.5-flash:generateContent?key=" + env.get_env("GEMINI_API_KEY").second;
+            string prompt = data["prompt"];
+            string url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + env.get_env("GEMINI_API_KEY").second;
+            string parts = "{ \"contents\" : [{ \"parts\": [{ \"text\" : \"" +  prompt + "\"}] }]}";
+            string command = "curl \"" + url + "\" -X POST -H 'Content-Type: application/json' -d '" + parts + "'";
+            std::string output = exec(command.c_str());
 
-            json input_data = json::parse(R"(
-            {
-                "contents": [{
-                    "parts":[{"text": "Write a story about a magic backpack."}]
-                    }]
-            }
-            )");
-            HTTPResponse res = http_fetch(url, route, "POST", "", 80, "application/json");
+            std::regex text_regex(R"(\"text\":\s*\"([^"]+)\")");
+            std::smatch match;
+            regex_search(output, match, text_regex);
 
-    cout << res.content << endl;
+            json response_json;
+            response_json["response"] = match[1];
+            response.set_response_json(response_json);
 
-    response.set_html_content("./src/index.html");
-    return response;
+            return response;
         }
     });
 
